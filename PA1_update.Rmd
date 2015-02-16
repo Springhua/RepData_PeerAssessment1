@@ -8,8 +8,6 @@ First, we load the data and transform **date** and **interval** into factor vari
 
 ```{r}
 activity <- read.csv("~/Coursera/Data Science/activity.csv", header = T)
-activity = transform(activity, date = factor(date),
-                     interval = factor(interval))
 ```
 
 ## What is mean total number of steps taken per day?
@@ -20,8 +18,9 @@ library(dplyr)
 library(lattice)
 steps_mean1 <- 
   activity %>%
-    group_by(date) %>%
-      summarize(day_steps = sum(steps, na.rm = T)) 
+    filter(!is.na(steps)) %>%
+      group_by(date) %>%
+        summarize(day_steps = sum(steps)) 
 hist(steps_mean1$day_steps, main = "Histogram of total number of 
       steps taken per day", xlab = "Total number of steps")
 mean1 <- as.integer(mean(steps_mean1$day_steps))
@@ -35,32 +34,34 @@ The time series plot of the 5-minute interval and the average number of steps ta
 ```{r stepsmean2}
 steps_mean2 <- 
   activity %>%
-    group_by(interval) %>%
-      summarize(int_steps = mean(steps, na.rm = T)) 
+    filter(!is.na(steps)) %>%
+      group_by(interval) %>%
+        summarize(int_steps = mean(steps, na.rm = T)) 
 xyplot(int_steps ~ interval, data = steps_mean2, type = 'l',
        xlab = "Interval", ylab = "Number of Steps")
-max <-
-  steps_mean2 %>%
-    filter(int_steps == max(int_steps))
+max <- steps_mean2$interval[which.max(steps_mean2$int_steps)] 
 ```
-The 5-minuter interval with the maximum number of steps is `r max`, which the former value is the interval id and the later value is the maximum number of steps.
+The 5-minuter interval with the maximum number of steps is `r max`.
 
 ## Imputing missing values
-Here I filled in the missing values with the mean for each day. The new dataset is *activity2*. The histogram is as below.
+```{r}
+total <- sum(is.na(activity))
+```
+
+The number of missing values is `r total`.Here I filled in the missing values with the mean for each 5-minute interval. The new dataset is *activity2*. The histogram is as below.
 
 ```{r stepsmean3}
 activity2 <-  
   activity %>%
-    group_by(date) 
-activity2 <- mutate(activity, steps = ifelse(is.na(steps),
+    group_by(interval) %>%
+      mutate(steps = ifelse(is.na(steps),
                             as.integer(mean(steps, na.rm = T)),
                             steps))
 steps_mean3 <- 
   activity2 %>%
     group_by(date) %>%
       summarize(day_steps = sum(steps)) 
-hist(steps_mean3$day_steps, main = "Histogram of total number of steps
-     taken per day", xlab = "Total number of steps")
+hist(steps_mean3$day_steps, main = "Histogram of total number of steps taken per day", xlab = "Total number of steps")
 mean2 <- as.integer(mean(steps_mean3$day_steps))
 median2 <- median(steps_mean3$day_steps)
 ```
@@ -73,8 +74,8 @@ The mean and median of the total number of steps taken per day is `r mean2` and 
 steps_mean4 <- 
   activity2 %>%
     mutate(days_ends = weekdays(as.Date(date))) %>%
-      mutate(days_ends = ifelse((days_ends == "Saturday" | 
-                                   days_ends == "Sunday"),
+      mutate(days_ends = ifelse((days_ends == "Saturday" |
+                                   days_ends== "Sunday"),
                                   "weekend","weekday")) %>%
         group_by(interval, days_ends) %>%
           summarize(int_steps = mean(steps, na.rm = T)) 
